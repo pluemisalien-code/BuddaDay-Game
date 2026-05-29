@@ -1,17 +1,453 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BuddaDay Game</title>
-    <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dharma RPG: Endless Boss Fight</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-gold: #FFD700;
+            --saffron: #FF9933;
+            --boss-red: #ff3333;
+            --player-green: #2ecc71;
+            --mp-blue: #3498db;
+            --bg-dark: #120A05;
+            --panel-bg: rgba(25, 15, 5, 0.85);
+            --border-gold: rgba(255, 215, 0, 0.3);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Prompt', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: #000; background-image: radial-gradient(#2c1a04 1px, transparent 1px); background-size: 20px 20px; color: white; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow-x: hidden; }
+
+        #game-stage { width: 100%; max-width: 500px; height: 100vh; background-color: var(--bg-dark); position: relative; box-shadow: 0 0 30px rgba(255, 153, 51, 0.2); display: flex; flex-direction: column; overflow: hidden; }
+        @media (min-width: 501px) { #game-stage { height: 92vh; border-radius: 24px; border: 2px solid var(--border-gold); } }
+
+        .screen { display: none; flex-direction: column; width: 100%; height: 100%; padding: 20px; overflow-y: auto; z-index: 2; }
+        .screen.active { display: flex; }
+
+        /* Title Screen */
+        .title-container { text-align: center; margin: auto 0; padding-bottom: 20px; }
+        .game-title { font-size: 2.5rem; color: var(--primary-gold); text-shadow: 0 0 10px rgba(255,215,0,0.5); line-height: 1.2; font-weight: 700; }
+        .game-subtitle { color: var(--saffron); margin-top: 10px; font-size: 1.1rem; }
+        .mode-container { display: flex; flex-direction: column; gap: 15px; margin-top: 20px; }
+        .btn-story { background: linear-gradient(135deg, #e67e22, #d35400); }
+        .btn-endless { background: linear-gradient(135deg, #8e44ad, #9b59b6); border: 1px solid #d2b4de; }
+
+        /* Credits Box */
+        .credits-box { margin-top: 30px; padding: 15px; background: rgba(255, 255, 255, 0.05); border: 1px dashed var(--border-gold); border-radius: 12px; font-size: 0.9rem; color: #ddd; text-align: center; width: 100%; }
+        .credits-box p { margin-bottom: 6px; line-height: 1.5; }
+
+        /* HUD & Bars */
+        .battle-hud { display: flex; flex-direction: column; gap: 10px; background: var(--panel-bg); border: 1px solid var(--border-gold); padding: 15px; border-radius: 16px; backdrop-filter: blur(10px); box-shadow: 0 5px 15px rgba(0,0,0,0.5); margin-bottom: 15px; flex-shrink: 0; }
+        .hud-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; font-weight: 600; margin-bottom: 4px; }
+        .boss-name { color: var(--boss-red); }
+        .player-name { color: var(--player-green); }
+        .wave-counter { text-align: center; color: var(--primary-gold); font-size: 0.85rem; font-weight: 600; margin-top: 5px; padding-top: 5px; border-top: 1px dashed rgba(255,215,0,0.3); display: none; }
+        
+        .bar-outer { width: 100%; height: 16px; background: rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.2); position: relative; }
+        .bar-fill { height: 100%; width: 100%; transition: width 0.4s ease-out; }
+        .boss-hp { background: linear-gradient(90deg, #c0392b, var(--boss-red)); }
+        .player-hp { background: linear-gradient(90deg, #27ae60, var(--player-green)); }
+        .player-mp { background: linear-gradient(90deg, #2980b9, var(--mp-blue)); }
+        .bar-text { position: absolute; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; font-size: 0.75rem; font-weight: bold; text-shadow: 1px 1px 2px #000; top: 0; left: 0; }
+
+        /* Boss Area */
+        .boss-avatar-box { display: flex; justify-content: center; align-items: center; margin-bottom: 15px; flex-shrink: 0; position: relative; }
+        .boss-circle { width: 100px; height: 100px; border-radius: 50%; border: 3px solid var(--boss-red); background: radial-gradient(circle, #4a0000 0%, #1a0000 100%); display: flex; justify-content: center; align-items: center; font-size: 2.5rem; box-shadow: 0 0 20px rgba(255,51,51,0.4); animation: float 3s ease-in-out infinite; transition: all 0.3s; }
+
+        /* Combat Zone */
+        .combat-scroll-zone { flex-grow: 1; overflow-y: auto; padding-right: 4px; }
+        .question-card { background: rgba(255,255,255,0.05); border-left: 4px solid var(--saffron); padding: 16px; border-radius: 0 12px 12px 0; font-size: 1.1rem; line-height: 1.5; margin-bottom: 15px; }
+        .options-list { display: flex; flex-direction: column; gap: 10px; }
+        .option-item { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,215,0,0.1); color: white; padding: 14px; border-radius: 10px; text-align: left; font-size: 0.95rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; }
+        .option-item:hover { background: rgba(255, 153, 51, 0.15); border-color: var(--saffron); }
+        .option-item.correct { background-color: rgba(46, 204, 113, 0.3) !important; border-color: var(--player-green) !important; color: #fff; }
+        .option-item.wrong { background-color: rgba(231, 76, 60, 0.3) !important; border-color: var(--boss-red) !important; color: #fff; }
+
+        /* Floating Damage */
+        .damage-pop { position: absolute; font-size: 1.8rem; font-weight: 800; text-shadow: 2px 2px 0 #000; animation: popUp 1s forwards ease-out; pointer-events: none; z-index: 10; }
+        .dmg-boss { color: var(--primary-gold); }
+        .dmg-player { color: var(--boss-red); }
+        .heal-player { color: var(--player-green); }
+
+        .btn { color: white; border: none; padding: 16px; font-size: 1.1rem; font-weight: 600; border-radius: 12px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px;}
+        .btn:hover { transform: translateY(-2px); filter: brightness(1.1); }
+        .result-panel { background: var(--panel-bg); border: 2px solid var(--border-gold); padding: 30px 20px; border-radius: 20px; text-align: center; margin: auto 0; }
+
+        /* รูปตอนตาย */
+        .death-img { max-width: 200px; border-radius: 12px; border: 3px solid var(--boss-red); box-shadow: 0 0 30px rgba(255, 0, 0, 0.6); margin-bottom: 20px; animation: popUpDeath 0.5s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+        /* BOSS CUTSCENE OVERLAY */
+        #cutscene-overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.95); z-index: 100; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px; }
+        #cutscene-overlay.active { display: flex; animation: fadeInOut 3.5s forwards ease-in-out; }
+        .cutscene-img { max-width: 85%; border-radius: 12px; border: 3px solid var(--boss-red); box-shadow: 0 0 40px rgba(255, 51, 51, 0.8); margin-bottom: 20px; }
+        
+        .jumpscare-shake { animation: violentShake 0.15s infinite alternate; }
+        .cutscene-text { color: var(--boss-red); font-size: 1.8rem; font-weight: 700; text-shadow: 2px 2px 10px #000; font-style: italic; animation: flashText 0.5s infinite alternate; }
+
+        /* Animations */
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+        @keyframes popUp { 0% { opacity: 1; transform: scale(0.5) translateY(0); } 30% { transform: scale(1.2) translateY(-20px); } 100% { opacity: 0; transform: scale(1) translateY(-60px); } }
+        @keyframes popUpDeath { 0% { opacity: 0; transform: scale(0.5) rotate(-10deg); } 100% { opacity: 1; transform: scale(1) rotate(0deg); } }
+        .shake { animation: shake 0.4s; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+        @keyframes violentShake { 0% { transform: translate(15px, 15px) rotate(3deg) scale(1.1); filter: invert(0.2); } 100% { transform: translate(-15px, -15px) rotate(-3deg) scale(1.2); filter: invert(0); } }
+        .flash { animation: flash 0.2s; }
+        @keyframes flash { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(2.5) sepia(0.5); } }
+        @keyframes flashText { 0% { opacity: 0.5; transform: scale(1); } 100% { opacity: 1; transform: scale(1.1); } }
+        @keyframes fadeInOut { 0% { opacity: 0; } 5% { opacity: 1; } 90% { opacity: 1; } 100% { opacity: 0; } }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <h1>BuddaDay Game</h1>
-        <p>Welcome to BuddaDay Game!</p>
-        <div id="game-board"></div>
+
+    <div id="game-stage">
+        
+        <div id="cutscene-overlay">
+            <img src="https://i.ibb.co/WN5yyvmg/FB-IMG-1768450048057.jpg" alt="Boss Reaction" class="cutscene-img" id="cutscene-img">
+            <div class="cutscene-text" id="cutscene-text">"แกอีกแล้วสินะ..."</div>
+        </div>
+
+        <div id="start-screen" class="screen active">
+            <div class="title-container">
+                <div class="game-title">DHARMA<br>BOSS FIGHT</div>
+                <p class="game-subtitle">พิชิตกิเลสด้วยปัญญาแห่งธรรม</p>
+                
+                <div class="mode-container">
+                    <button class="btn btn-story" onclick="game.startBattle('story')">👑 โหมดพิชิตบอส (ทั่วไป)</button>
+                    <button class="btn btn-endless" onclick="game.startBattle('endless')">🔥 โหมดเอาชีวิตรอด (ไม่จำกัด)</button>
+                </div>
+
+                <div class="credits-box">
+                    <div style="color: var(--primary-gold); font-weight: bold; font-size: 1.1rem; margin-bottom: 10px;">โดย</div>
+                    <p>ด.ช.ธนภัทร สายแวว หน้าที่ เขียนโค้ด</p>
+                    <p>ด.ช.ภูวเดช ทองศรี หน้าที่ เขียนโค้ด</p>
+                    <p>เพื่อนๆแถวที่ 1 มีหน้าที่ หาข้อมูล</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="battle-screen" class="screen">
+            <div class="battle-hud">
+                <div>
+                    <div class="hud-row"><span class="boss-name" id="boss-name-ui">👿 กิเลสโมหะ</span><span id="txt-boss-hp">HP: 500/500</span></div>
+                    <div class="bar-outer"><div class="bar-fill boss-hp" id="bar-boss-hp"></div><div class="bar-text" id="pct-boss-hp">100%</div></div>
+                </div>
+                <div style="margin-top: 5px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <div class="hud-row"><span class="player-green">🧘 ผู้แสวงบุญ</span><span id="txt-player-hp">200/200</span></div>
+                        <div class="bar-outer"><div class="bar-fill player-hp" id="bar-player-hp"></div></div>
+                    </div>
+                    <div>
+                        <div class="hud-row"><span class="mp-blue">✨ ปัญญา (MP)</span><span id="txt-player-mp">0/100</span></div>
+                        <div class="bar-outer"><div class="bar-fill player-mp" id="bar-player-mp"></div></div>
+                    </div>
+                </div>
+                <div class="wave-counter" id="wave-counter">กำจัดบอสไปแล้ว: 0 ตน</div>
+            </div>
+
+            <div class="boss-avatar-box" id="boss-zone">
+                <div class="boss-circle" id="boss-emoji">👹</div>
+            </div>
+
+            <div class="combat-scroll-zone">
+                <div style="font-size: 0.85rem; color: var(--saffron); margin-bottom: 5px; font-weight: 600;" id="quiz-turn">คำถาม</div>
+                <div class="question-card" id="question-text">โหลดคำถาม...</div>
+                <div class="options-list" id="options-container"></div>
+            </div>
+        </div>
+
+        <div id="result-screen" class="screen">
+            <div class="result-panel">
+                <div id="result-icon" style="font-size: 4rem; margin-bottom: 20px; display: flex; justify-content: center;">🎉</div>
+                <h2 id="result-title" style="color: var(--primary-gold); margin-bottom: 10px;">ผลลัพธ์</h2>
+                <p id="result-desc" style="color: #ddd; font-size: 0.95rem; line-height: 1.6;">รายละเอียด</p>
+            </div>
+            <button class="btn btn-story" onclick="game.restart()" style="margin-top: 20px;">กลับสู่หน้าแรก</button>
+        </div>
     </div>
-    <script src="script.js"></script>
+
+    <script>
+        // เสียง Jumpscare ตอนบอสตาย
+        const jumpscareSound = new Audio('https://www.myinstants.com/media/sounds/fnaf-jumpscare-sound.mp3');
+        jumpscareSound.volume = 0.8; 
+
+        // เปลี่ยนเป็นเสียงมีมกบหัวเราะจากไฟล์ MP3 โดยตรง
+        const deathLaughSound = new Audio('https://www.myinstants.com/media/sounds/laughing-frog.mp3');
+        deathLaughSound.volume = 1.0; 
+
+        // สร้างไฟล์สำรองเผื่อลิงก์บนเข้าไม่ได้ (เสียงหัวเราะกวนๆ อีกอัน)
+        deathLaughSound.onerror = function() {
+            deathLaughSound.src = 'https://www.myinstants.com/media/sounds/funny-laugh_2.mp3';
+        };
+
+        const questionBank = [
+            { q: "เหตุการณ์ ประสูติ ตรัสรู้ และปรินิพพาน เกิดขึ้นตรงกับวันสำคัญใด?", อ้างอิง: ["วันมาฆบูชา", "วันวิสาขบูชา", "วันอาสาฬหบูชา", "วันเข้าพรรษา"], ans: 1 },
+            { q: "วันใดที่พระสงฆ์สาวก 1,250 รูปมาประชุมพร้อมกันโดยมิได้นัดหมาย?", อ้างอิง: ["วันมาฆบูชา", "วันออกพรรษา", "วันวิสาขบูชา", "วันอาสาฬหบูชา"], ans: 0 },
+            { q: "พระรัตนตรัยเกิดขึ้นครบองค์ 3 เป็นครั้งแรกในวันใด?", อ้างอิง: ["วันเข้าพรรษา", "วันอัฏฐมีบูชา", "วันอาสาฬหบูชา", "วันมาฆบูชา"], ans: 2 },
+            { q: "วันอัฏฐมีบูชา คือวันใด?", อ้างอิง: ["วันถวายพระเพลิงพระพุทธสรีระ", "วันแสดงปฐมเทศนา", "วันประสูติพระพุทธเจ้า", "วันเทโวโรหณะ"], ans: 0 },
+            { q: "พระพุทธเจ้าทรงแสดง 'โอวาทปาติโมกข์' ในวันใด?", อ้างอิง: ["วันวิสาขบูชา", "วันเข้าพรรษา", "วันออกพรรษา", "วันมาฆบูชา"], ans: 3 },
+            { q: "หลักธรรม 'ธัมมจักกัปปวัตตนสูตร' ทรงแสดงครั้งแรกในวันใด?", อ้างอิง: ["วันอาสาฬหบูชา", "วันมาฆบูชา", "วันวิสาขบูชา", "วันอัฏฐมีบูชา"], ans: 0 },
+            { q: "ประเพณีตักบาตรเทโวโรหณะ เกี่ยวข้องกับเหตุการณ์ใด?", อ้างอิง: ["พระพุทธเจ้าปรินิพพาน", "พระพุทธเจ้าเสด็จลงจากสวรรค์ชั้นดาวดึงส์", "พระพุทธเจ้าตรัสรู้", "พระสงฆ์จำพรรษา"], ans: 1 },
+            { q: "วันใดที่องค์การสหประชาชาติ (UN) ประกาศให้เป็นวันสำคัญสากลของโลก?", อ้างอิง: ["วันมาฆบูชา", "วันอาสาฬหบูชา", "วันวิสาขบูชา", "วันเข้าพรรษา"], ans: 2 },
+            { q: "พระภิกษุสงฆ์รูปแรกในพระพุทธศาสนาคือใคร?", อ้างอิง: ["พระอานนท์", "พระสารีบุตร", "พระอัญญาโกณฑัญญะ", "พระมหากัสสปะ"], ans: 2 },
+            { q: "ช่วงเวลาที่พระภิกษุสงฆ์ต้องอยู่ประจำที่วัดเป็นเวลา 3 เดือน เรียกว่าอะไร?", อ้างอิง: ["การธุดงค์", "การจำพรรษา", "การปริวาสกรรม", "การทำวัตร"], ans: 1 }
+        ];
+
+        const bossEmojis = ["👹", "👺", "👿", "👽", "👾", "💀"]; 
+        const allBossQuotes = [
+            "แกอีกแล้วสินะ...!!!",
+            "ข้าไม่มีวันตายยย!!!",
+            "คิดว่าจะรอดงั้นเรอะ!!!",
+            "ดื้อด้านซะจริงนะ เจ้านมนุษย์...",
+            "เดี๋ยวพ่อเอาคืน!!!",
+            "รอบหน้าแกไม่รอดแน่!!!",
+            "ตกใจไหมล่ะเจ้าโง่!!!",
+            "ชิ... วันนี้ดวงแกดีไปเถอะ!",
+            "กลับมาก่อน ข้ายังไม่ตาย!!!",
+            "จำไว้... ข้าจะกลับมาหลอกหลอนแก!!!"
+        ];
+        let currentBossQuotes = [];
+
+        const game = {
+            mode: 'story',
+            boss: { maxHp: 500, hp: 500, name: "กิเลสระดับต้น" },
+            player: { maxHp: 200, hp: 200, mp: 0, maxMp: 100 },
+            currentTurn: 0,
+            totalCorrect: 0, 
+            bossesDefeated: 0,
+            questionsPool: [],
+            currentQuiz: null,
+            lockBoard: false,
+
+            startBattle: function(selectedMode) {
+                this.mode = selectedMode;
+                this.boss = { maxHp: 500, hp: 500, name: "กิเลสโมหะ" };
+                this.player = { maxHp: 200, hp: 200, mp: 0, maxMp: 100 };
+                this.currentTurn = 0;
+                this.totalCorrect = 0; 
+                this.bossesDefeated = 0;
+                this.lockBoard = false;
+                this.questionsPool = [];
+                currentBossQuotes = [...allBossQuotes]; 
+                
+                document.getElementById('boss-emoji').innerText = "👹";
+
+                if (this.mode === 'endless') {
+                    document.getElementById('wave-counter').style.display = 'block';
+                    document.getElementById('wave-counter').innerText = `กำจัดบอสไปแล้ว: 0 ตน`;
+                } else {
+                    document.getElementById('wave-counter').style.display = 'none';
+                }
+                
+                this.showScreen('battle-screen');
+                this.updateUI();
+                this.nextQuestion();
+
+                jumpscareSound.load(); 
+                deathLaughSound.load();
+            },
+
+            getQuestion: function() {
+                if (this.questionsPool.length === 0) {
+                    this.questionsPool = [...questionBank].sort(() => Math.random() - 0.5);
+                }
+                return this.questionsPool.pop();
+            },
+
+            nextQuestion: function() {
+                this.lockBoard = false;
+                this.currentTurn++; 
+                this.currentQuiz = this.getQuestion();
+                
+                const turnText = this.mode === 'story' 
+                    ? `บททดสอบที่ ${this.currentTurn}` 
+                    : `คำถามข้อที่ ${this.currentTurn} (ตอบถูกไปแล้ว: ${this.totalCorrect})`;
+                
+                document.getElementById('quiz-turn').innerText = turnText;
+                document.getElementById('question-text').innerText = this.currentQuiz.q;
+                
+                const container = document.getElementById('options-container');
+                container.innerHTML = '';
+
+                this.currentQuiz.อ้างอิง.forEach((opt, idx) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'option-item';
+                    btn.innerHTML = `<span style="color:var(--saffron); font-weight:bold; margin-right:10px;">${idx+1}.</span> ${opt}`;
+                    btn.onclick = () => this.handleAnswer(idx, btn);
+                    container.appendChild(btn);
+                });
+            },
+
+            handleAnswer: function(selectedIndex, clickedBtn) {
+                if (this.lockBoard) return;
+                this.lockBoard = true;
+
+                const allAnswers = document.querySelectorAll('.option-item');
+                
+                if (selectedIndex === this.currentQuiz.ans) {
+                    this.totalCorrect++; 
+                    clickedBtn.classList.add('correct');
+                    let dmg = 120 + Math.floor(Math.random() * 50);
+                    this.boss.hp = Math.max(0, this.boss.hp - dmg);
+                    this.player.mp = Math.min(this.player.maxMp, this.player.mp + 25);
+                    
+                    this.popText(`CRITICAL! -${dmg}`, 'dmg-boss', 'boss-zone');
+                    document.getElementById('boss-zone').classList.add('flash', 'shake');
+                    setTimeout(() => document.getElementById('boss-zone').classList.remove('flash', 'shake'), 400);
+                } else {
+                    clickedBtn.classList.add('wrong');
+                    allAnswers[this.currentQuiz.ans].classList.add('correct');
+                    
+                    let baseDmg = this.mode === 'endless' ? 40 + (this.bossesDefeated * 10) : 40;
+                    let dmg = baseDmg + Math.floor(Math.random() * 20);
+                    this.player.hp = Math.max(0, this.player.hp - dmg);
+                    
+                    this.popText(`-${dmg}`, 'dmg-player', 'game-stage');
+                    document.getElementById('game-stage').classList.add('shake');
+                    setTimeout(() => document.getElementById('game-stage').classList.remove('shake'), 400);
+                }
+
+                this.updateUI();
+
+                setTimeout(() => {
+                    if (this.player.hp <= 0) {
+                        this.endGame(false);
+                    } else if (this.boss.hp <= 0) {
+                        if (this.mode === 'story') {
+                            this.playBossDefeatedCutscene(() => this.endGame(true));
+                        } else {
+                            this.playBossDefeatedCutscene(() => this.spawnNextBoss());
+                        }
+                    } else {
+                        if (this.mode === 'story' && this.currentTurn >= questionBank.length) {
+                            this.endGame(this.boss.hp <= 0);
+                        } else {
+                            this.nextQuestion();
+                        }
+                    }
+                }, 1500);
+            },
+
+            playBossDefeatedCutscene: function(callbackAfterCutscene) {
+                if (currentBossQuotes.length === 0) {
+                    currentBossQuotes = [...allBossQuotes];
+                }
+                const randomIndex = Math.floor(Math.random() * currentBossQuotes.length);
+                const randomQuote = currentBossQuotes.splice(randomIndex, 1)[0];
+
+                const overlay = document.getElementById('cutscene-overlay');
+                const cutsceneImg = document.getElementById('cutscene-img');
+                
+                document.getElementById('cutscene-text').innerText = `"${randomQuote}"`;
+                
+                overlay.style.display = 'flex';
+                overlay.classList.add('active');
+                
+                cutsceneImg.classList.add('jumpscare-shake');
+
+                jumpscareSound.currentTime = 0;
+                jumpscareSound.play().catch(e => console.log("Autoplay prevented"));
+
+                setTimeout(() => {
+                    overlay.classList.remove('active');
+                    cutsceneImg.classList.remove('jumpscare-shake'); 
+                    overlay.style.display = 'none';
+                    
+                    jumpscareSound.pause();
+                    jumpscareSound.currentTime = 0;
+
+                    callbackAfterCutscene();
+                }, 3000); 
+            },
+
+            spawnNextBoss: function() {
+                this.bossesDefeated++;
+                document.getElementById('wave-counter').innerText = `กำจัดบอสไปแล้ว: ${this.bossesDefeated} ตน`;
+                
+                this.boss.maxHp = Math.floor(500 * (1 + (this.bossesDefeated * 0.3)));
+                this.boss.hp = this.boss.maxHp;
+                
+                let healAmount = 50;
+                this.player.hp = Math.min(this.player.maxHp, this.player.hp + healAmount);
+                this.popText(`+${healAmount} HP`, 'heal-player', 'game-stage');
+
+                const randomEmoji = bossEmojis[Math.floor(Math.random() * bossEmojis.length)];
+                document.getElementById('boss-emoji').innerText = randomEmoji;
+                document.getElementById('boss-zone').classList.add('flash');
+                setTimeout(() => document.getElementById('boss-zone').classList.remove('flash'), 300);
+
+                this.updateUI();
+                
+                setTimeout(() => {
+                    this.nextQuestion();
+                }, 500);
+            },
+
+            updateUI: function() {
+                document.getElementById('txt-boss-hp').innerText = `HP: ${this.boss.hp}/${this.boss.maxHp}`;
+                const bossHpPct = (this.boss.hp / this.boss.maxHp) * 100;
+                document.getElementById('bar-boss-hp').style.width = `${bossHpPct}%`;
+                document.getElementById('pct-boss-hp').innerText = `${Math.floor(bossHpPct)}%`;
+
+                document.getElementById('txt-player-hp').innerText = `${this.player.hp}/${this.player.maxHp}`;
+                document.getElementById('bar-player-hp').style.width = `${(this.player.hp / this.player.maxHp) * 100}%`;
+                
+                document.getElementById('txt-player-mp').innerText = `${this.player.mp}/${this.player.maxMp}`;
+                document.getElementById('bar-player-mp').style.width = `${(this.player.mp / this.player.maxMp) * 100}%`;
+            },
+
+            popText: function(text, typeClass, targetId) {
+                const pop = document.createElement('div');
+                pop.className = `damage-pop ${typeClass}`;
+                pop.innerText = text;
+                pop.style.left = `${40 + Math.random() * 20}%`;
+                pop.style.top = targetId === 'boss-zone' ? '25%' : '15%';
+                document.getElementById('game-stage').appendChild(pop);
+                setTimeout(() => pop.remove(), 1000);
+            },
+
+            showScreen: function(screenId) {
+                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                document.getElementById(screenId).classList.add('active');
+            },
+
+            endGame: function(isWin) {
+                this.showScreen('result-screen');
+                
+                if (this.player.hp <= 0 || !isWin) {
+                    document.getElementById('result-icon').innerHTML = `<img src="https://i.ibb.co/gbDKYkkW/20260529-121012.jpg" class="death-img" alt="Death Meme">`;
+                    document.getElementById('result-title').innerText = "โดนกิเลสครอบงำ!";
+                    document.getElementById('result-title').style.color = "var(--boss-red)";
+                    document.getElementById('result-desc').innerText = `ตอบถูกทั้งหมด ${this.totalCorrect} ข้อ\nจงตั้งสติ ทบทวนหลักธรรม แล้วกลับมาสู้อีกครั้ง!`;
+                    
+                    // เล่นเสียงกบหัวเราะ
+                    deathLaughSound.currentTime = 0;
+                    deathLaughSound.play().catch(e => console.log("Autoplay prevented"));
+                } 
+                else {
+                    document.getElementById('result-icon').innerHTML = "👑";
+                    document.getElementById('result-title').innerText = "กิเลสถูกดับสูญ!";
+                    document.getElementById('result-title').style.color = "var(--primary-gold)";
+                    document.getElementById('result-desc').innerText = "คุณใช้ปัญญาความรู้ในวันสำคัญทางศาสนา ทะลวงมายาของความหลงได้สำเร็จ จิตใจผ่องใสบริสุทธิ์!";
+                }
+
+                if (this.mode === 'endless' && this.player.hp > 0) {
+                    document.getElementById('result-icon').innerHTML = "🔥";
+                    document.getElementById('result-title').innerText = "จบการเดินทาง";
+                    document.getElementById('result-title').style.color = "var(--saffron)";
+                    document.getElementById('result-desc').innerHTML = 
+                        `คุณสู้มาจนถึงคำถามที่ <b>${this.currentTurn}</b><br>` +
+                        `ตอบถูกไปทั้งสิ้น <b>${this.totalCorrect}</b> ข้อ<br>` + 
+                        `และกำจัดกิเลสไปได้ <b>${this.bossesDefeated}</b> ตน!<br><br>ถือเป็นผลงานที่ยอดเยี่ยมมากครับ`;
+                }
+            },
+
+            restart: function() {
+                deathLaughSound.pause();
+                this.showScreen('start-screen');
+            }
+        };
+    </script>
 </body>
 </html>
