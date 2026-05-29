@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Dharma RPG: Endless Boss Fight</title>
+    
+    <!-- เพิ่มคำสั่ง Preload โหลดรูปรอไว้ล่วงหน้าตั้งแต่หน้าเว็บโหลด -->
+    <link rel="preload" as="image" href="https://i.ibb.co/gbDKYkkW/20260529-121012.jpg">
+    <link rel="preload" as="image" href="https://i.ibb.co/WN5yyvmg/FB-IMG-1768450048057.jpg">
+
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -103,6 +108,7 @@
 
     <div id="game-stage">
         
+        <!-- Cutscene Overlay -->
         <div id="cutscene-overlay">
             <img src="https://i.ibb.co/WN5yyvmg/FB-IMG-1768450048057.jpg" alt="Boss Reaction" class="cutscene-img" id="cutscene-img">
             <div class="cutscene-text" id="cutscene-text">"แกอีกแล้วสินะ..."</div>
@@ -168,6 +174,13 @@
     </div>
 
     <script>
+        // ใช้ JavaScript ช่วยโหลดรูปภาพล่วงหน้าเพิ่มเติม (Preload ด้วย JS)
+        const preloadDeathImage = new Image();
+        preloadDeathImage.src = 'https://i.ibb.co/gbDKYkkW/20260529-121012.jpg';
+        
+        const preloadBossImage = new Image();
+        preloadBossImage.src = 'https://i.ibb.co/WN5yyvmg/FB-IMG-1768450048057.jpg';
+
         const jumpscareSound = new Audio('https://www.myinstants.com/media/sounds/fnaf-jumpscare-sound.mp3');
         jumpscareSound.volume = 0.8; 
         const deathLaughSound = new Audio('https://www.myinstants.com/media/sounds/laughing-frog.mp3');
@@ -176,7 +189,6 @@
             deathLaughSound.src = 'https://www.myinstants.com/media/sounds/funny-laugh_2.mp3';
         };
 
-        // คลังข้อสอบ 25 ข้อ (เรื่องจันทรคติ วันสำคัญ และเนื้อหาไม่ซ้ำ)
         const questionBank = [
             { q: "วันมาฆบูชา ตรงกับวันตามปฏิทินจันทรคติคือข้อใด?", อ้างอิง: ["ขึ้น 15 ค่ำ เดือน 3", "ขึ้น 15 ค่ำ เดือน 6", "ขึ้น 15 ค่ำ เดือน 8", "แรม 1 ค่ำ เดือน 8"], ans: 0 },
             { q: "วันวิสาขบูชา ตรงกับวันตามปฏิทินจันทรคติคือข้อใด?", อ้างอิง: ["ขึ้น 15 ค่ำ เดือน 3", "ขึ้น 15 ค่ำ เดือน 6", "ขึ้น 15 ค่ำ เดือน 8", "แรม 1 ค่ำ เดือน 11"], ans: 1 },
@@ -432,7 +444,6 @@
                     document.getElementById('result-title').style.color = "var(--boss-red)";
                     document.getElementById('result-desc').innerText = `ตอบถูกทั้งหมด ${this.totalCorrect} ข้อ\nจงตั้งสติ ทบทวนหลักธรรม แล้วกลับมาสู้อีกครั้ง!`;
                     
-                    // เล่นเสียงกบหัวเราะ
                     deathLaughSound.currentTime = 0;
                     deathLaughSound.play().catch(e => console.log("Autoplay prevented"));
                 } 
